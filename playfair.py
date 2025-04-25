@@ -1,100 +1,52 @@
 import numpy as np
-import tabulate as tb
 
-def findIndex(matrix, letter):
-    r=0
-    for row in matrix:
-        c=0
-        for element in row:
-            if element == letter:
-                return (r,c)
-            elif(letter in element):
-                return r,c
-            c+=1
-        r+=1
+def generate_playfair_matrix(key):
+    key = "".join(dict.fromkeys(key.upper().replace("J", "I")))
+    alphabet = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+    matrix = [c for c in key + "".join([c for c in alphabet if c not in key])]
+    return np.array(matrix).reshape(5, 5)
 
+def find_position(matrix, letter):
+    idx = np.where(matrix == letter)
+    return idx[0][0], idx[1][0]
 
-def encryptMessage(message,key):
-    keyMatrix=generateMatrix(key)
-    message.replace(" ",'')
-    message=list(message)
-    cipherText=''
-    for i in range(int(np.ceil(len(message)/2))):
-        digraph=message[0:2]
-        if len(digraph)==2:
-            if digraph[0]!=digraph[1]:
-                message.pop(0)
-                message.pop(0)
-            elif digraph[0]!='X':
-                digraph[1]='X'
-                message.pop(0)
-            else:
-                digraph[1]='Q'
-                message.pop(0)
-        elif digraph[0]!='X':
-            digraph.append('X')
-            message.pop(0)
+def playfair_encrypt(text, key):
+    matrix = generate_playfair_matrix(key)
+    text = text.upper().replace("J", "I").replace(" ", "")
+    if len(text) % 2 != 0:
+        text += "X"  # Padding
+    result = ""
+    for i in range(0, len(text), 2):
+        a, b = text[i], text[i+1]
+        row_a, col_a = find_position(matrix, a)
+        row_b, col_b = find_position(matrix, b)
+        if row_a == row_b:
+            result += matrix[row_a, (col_a+1)%5] + matrix[row_b, (col_b+1)%5]
+        elif col_a == col_b:
+            result += matrix[(row_a+1)%5, col_a] + matrix[(row_b+1)%5, col_b]
         else:
-            digraph.append('Q')
-            message.pop(0)
-        r1,c1=findIndex(keyMatrix, digraph[0])
-        r2,c2=findIndex(keyMatrix, digraph[1])
-        if r1==r2:
-            if c1!=4 and c2!=4:
-                cipherText+=keyMatrix[r1][c1+1]
-                cipherText+=keyMatrix[r1][c2+1]
-            elif c1!=4:
-                cipherText+=keyMatrix[r1][c1+1]
-                cipherText+=keyMatrix[r1][0]
-            else:
-                cipherText+=keyMatrix[r1][0]
-                cipherText+=keyMatrix[r1][c2+1]
-        elif c1==c2:
-            if r1!=4 and r2!=4:
-                cipherText+=keyMatrix[r1+1][c1]
-                cipherText+=keyMatrix[r2+1][c1]
-            elif r1!=4:
-                cipherText+=keyMatrix[r1+1][c1]
-                cipherText+=keyMatrix[0][c2]
-            else:
-                cipherText+=keyMatrix[0][c1]
-                cipherText+=keyMatrix[r2+1][c1]
+            result += matrix[row_a, col_b] + matrix[row_b, col_a]
+    return result
+
+def playfair_decrypt(ciphertext, key):
+    matrix = generate_playfair_matrix(key)
+    result = ""
+    for i in range(0, len(ciphertext), 2):
+        a, b = ciphertext[i], ciphertext[i+1]
+        row_a, col_a = find_position(matrix, a)
+        row_b, col_b = find_position(matrix, b)
+        if row_a == row_b:
+            result += matrix[row_a, (col_a-1)%5] + matrix[row_b, (col_b-1)%5]
+        elif col_a == col_b:
+            result += matrix[(row_a-1)%5, col_a] + matrix[(row_b-1)%5, col_b]
         else:
-            cipherText+=keyMatrix[r1][c2]
-            cipherText+=keyMatrix[r2][c1]
-    return cipherText
+            result += matrix[row_a, col_b] + matrix[row_b, col_a]
+    return result
 
+message = "HELLO WORLD"
+key = "PLAYFAIR"
+encrypted_message = playfair_encrypt(message, key)
+decrypted_message = playfair_decrypt(encrypted_message, key)
 
-def generateMatrix(key):
-    matrix=[]
-    keyMatrix=[[None for _ in range(5)] for _ in range(5)]
-    for i in range(len(key)):
-        if key[i] not in matrix:
-            if key[i] not in ['I','J']:
-                matrix.append(key[i])
-            else:
-                matrix.append('I')
-    for j in range(26):
-        if letters[j] not in matrix:
-            if letters[j] not in ('I','J'):
-                matrix.append(letters[j])
-            elif 'I' not in matrix:
-                matrix.append('I')
-            else:
-                continue
-    count=0
-    for rows in range(5):
-        for cols in  range(5):
-            keyMatrix[rows][cols]=matrix[count]
-            count+=1
-        
-    print(tb.tabulate(keyMatrix))
-    return keyMatrix
-
-
-letters=[]
-for i in range(65,91):
-    letters.append(chr(i))
-key=input("Enter the key: ")
-message=input("Enter the message: ")
-print(encryptMessage(message.upper(),key.upper()))
+print("Encrypted:", encrypted_message)
+print("Decrypted:", decrypted_message)
